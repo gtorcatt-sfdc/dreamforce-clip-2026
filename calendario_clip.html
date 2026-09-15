@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Calendario Clip — Dreamforce 2026</title>
+<style>
+  :root { color-scheme: light; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f4f8; color: #1a2533; padding: 24px; }
+
+  h1 { text-align: center; font-size: 1.5rem; color: #0d2a4e; margin-bottom: 4px; }
+  .subtitle { text-align: center; color: #5a7a9a; font-size: 0.88rem; margin-bottom: 18px; }
+
+  .legend {
+    display: flex; gap: 12px; justify-content: center; margin-bottom: 20px;
+    flex-wrap: wrap; background: white; padding: 12px 20px;
+    border-radius: 12px; box-shadow: 0 1px 6px rgba(0,0,0,0.08);
+    max-width: 900px; margin-left: auto; margin-right: auto;
+  }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 0.82rem; font-weight: 600; }
+  .avatar { display:inline-block; font-size: 0.72rem; padding: 2px 8px; border-radius: 10px; font-weight: 700; white-space:nowrap; }
+  .avatar-g  { background: #16a34a; color: white; }
+  .avatar-a  { background: #7c3aed; color: white; }
+  .legend-sep { color: #ccc; font-size: 1rem; }
+  .legend-overlap { background: #fdf4ff; border: 2px solid #7c3aed; border-radius: 8px; padding: 3px 12px; color: #5b21b6; font-size: 0.78rem; font-weight: 700; }
+
+  /* Grid */
+  .grid { display: grid; grid-template-columns: 62px repeat(3, 1fr); gap: 3px; max-width: 1100px; margin: 0 auto; }
+
+  .day-header { background: #0d2a4e; color: white; text-align: center; padding: 10px 6px; border-radius: 8px; font-weight: 700; }
+  .day-header .day-name { font-size: 0.7rem; opacity: 0.75; }
+  .day-header .day-num { font-size: 1.4rem; }
+  .corner { background: transparent; }
+
+  .time-col { background: transparent; }
+  .time-slot { height: 60px; display: flex; align-items: flex-start; padding-top: 4px; justify-content: flex-end; padding-right: 8px; font-size: 0.68rem; color: #7a9ab8; font-weight: 500; }
+
+  .day-col { position: relative; background: white; border-radius: 8px; border: 1px solid #dde6f0; overflow: hidden; }
+  .day-col-inner { position: relative; height: 780px; } /* 8am–9pm = 13h */
+  .hour-line { height: 60px; border-bottom: 1px solid #edf2f7; }
+
+  .event {
+    position: absolute;
+    border-radius: 6px;
+    padding: 3px 6px;
+    font-size: 0.67rem;
+    line-height: 1.3;
+    overflow: hidden;
+    cursor: default;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    z-index: 2;
+    left: 3px; right: 3px;
+  }
+  .event-title { font-weight: 700; font-size: 0.67rem; }
+  .event-time  { font-size: 0.58rem; opacity: 0.8; margin-top: 1px; }
+
+  /* Solo G */
+  .ev-g  { background: #dcfce7; border-left: 4px solid #16a34a; color: #14532d; }
+  /* Solo A */
+  .ev-a  { background: #ede9fe; border-left: 4px solid #7c3aed; color: #3b0764; }
+  /* Ambos coinciden */
+  .ev-ga {
+    background: white;
+    border: 3px solid transparent;
+    box-shadow: 0 0 0 3px #0ea5e9, 0 4px 14px rgba(14,165,233,0.3) !important;
+    animation: pulse-ga 2s infinite;
+    color: #1a2533;
+    z-index: 10;
+  }
+  @keyframes pulse-ga {
+    0%,100% { box-shadow: 0 0 0 3px #0ea5e9, 0 4px 14px rgba(14,165,233,0.3); }
+    50%      { box-shadow: 0 0 0 5px #0ea5e9, 0 6px 20px rgba(14,165,233,0.5); }
+  }
+
+  .badge { display:inline-block; font-size:0.54rem; padding:1px 5px; border-radius:10px; font-weight:700; text-transform:uppercase; margin-bottom:2px; }
+  .badge-theater  { background:#1e3a6e; color:white; }
+  .badge-keynote  { background:#b45309; color:white; }
+  .badge-breakout { background:#9d174d; color:white; }
+  .badge-meeting  { background:#059669; color:white; }
+  .badge-workshop { background:#065f46; color:white; }
+  .badge-activity { background:#0e7490; color:white; }
+  .badge-vip      { background:#92400e; color:white; }
+
+  .avatar-row { display:flex; gap:3px; align-items:center; margin-top:2px; flex-wrap:wrap; }
+
+  /* Coincidencias resumen */
+  .overlap-banner {
+    background: #e0f2fe; border: 2px solid #0ea5e9;
+    border-radius: 10px; padding: 12px 20px;
+    max-width: 900px; margin: 18px auto 0;
+    font-size: 0.82rem; color: #0c4a6e;
+  }
+  .overlap-banner h3 { font-size: 0.92rem; margin-bottom: 8px; color: #0369a1; }
+  .overlap-banner ul { padding-left: 18px; }
+  .overlap-banner li { margin-bottom: 5px; line-height: 1.5; }
+
+  .tz-note { text-align:center; font-size:0.72rem; color:#aaa; margin-top:10px; }
+
+  /* Split columns for same-time events */
+  .left-half  { left:3px !important; right:51% !important; }
+  .right-half { left:51% !important; right:3px !important; }
+
+  /* Venue tag */
+  .venue { font-size:0.58rem; color:#666; margin-top:2px; display:flex; align-items:center; gap:3px; }
+  .venue::before { content:'📍'; font-size:0.6rem; }
+
+  /* Map legend */
+  .map-legend {
+    max-width: 900px; margin: 14px auto 0;
+    background: white; border-radius: 12px;
+    box-shadow: 0 1px 6px rgba(0,0,0,0.08);
+    padding: 14px 20px;
+  }
+  .map-legend h3 { font-size: 0.88rem; color: #0d2a4e; margin-bottom: 10px; }
+  .map-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 6px; }
+  .map-item { display:flex; align-items:flex-start; gap:8px; font-size:0.75rem; }
+  .map-num { background:#0d2a4e; color:white; border-radius:50%; width:20px; height:20px; display:flex; align-items:center; justify-content:center; font-size:0.65rem; font-weight:700; flex-shrink:0; margin-top:1px; }
+  .map-item b { color:#0d2a4e; }
+  .map-item span { color:#5a7a9a; font-size:0.68rem; }
+</style>
+</head>
+<body>
+
+<h1>📅 Calendario Clip — Dreamforce 2026</h1>
+<p class="subtitle">Martes 15 · Miércoles 16 · Jueves 17 · Horario PT (San Francisco)</p>
+
+<div class="legend">
+  <div class="legend-item"><span class="avatar avatar-g">G</span>&nbsp; Tú (Gtorcatt)</div>
+  <span class="legend-sep">|</span>
+  <div class="legend-item"><span class="avatar avatar-a">Á</span>&nbsp; Álvaro</div>
+  <span class="legend-sep">|</span>
+  <div class="legend-overlap">🤝 Coinciden los dos</div>
+</div>
+
+<div class="grid">
+
+  <!-- HEADERS -->
+  <div class="corner"></div>
+  <div class="day-header"><div class="day-name">MAR</div><div class="day-num">15</div></div>
+  <div class="day-header"><div class="day-name">MIÉ</div><div class="day-num">16</div></div>
+  <div class="day-header"><div class="day-name">JUE</div><div class="day-num">17</div></div>
+
+  <!-- TIME 8am–9pm -->
+  <div class="time-col">
+    <div class="time-slot">8 AM</div>
+    <div class="time-slot">9 AM</div>
+    <div class="time-slot">10 AM</div>
+    <div class="time-slot">11 AM</div>
+    <div class="time-slot">12 PM</div>
+    <div class="time-slot">1 PM</div>
+    <div class="time-slot">2 PM</div>
+    <div class="time-slot">3 PM</div>
+    <div class="time-slot">4 PM</div>
+    <div class="time-slot">5 PM</div>
+    <div class="time-slot">6 PM</div>
+    <div class="time-slot">7 PM</div>
+    <div class="time-slot">8 PM</div>
+  </div>
+
+  <!-- ═══════════════ MARTES 15 ═══════════════ -->
+  <div class="day-col"><div class="day-col-inner">
+    <div class="hour-line"></div><div class="hour-line"></div><div class="hour-line"></div>
+    <div class="hour-line"></div><div class="hour-line"></div><div class="hour-line"></div>
+    <div class="hour-line"></div><div class="hour-line"></div><div class="hour-line"></div>
+    <div class="hour-line"></div><div class="hour-line"></div><div class="hour-line"></div>
+    <div class="hour-line"></div>
+
+    <!-- 8:30 G: Future-Proof -->
+    <div class="event ev-g" style="top:30px;height:48px;">
+      <span class="badge badge-breakout">Breakout</span>
+      <div class="event-title">Future-Proof Your Customer Service with Salesforce & AWS</div>
+      <div class="event-time">8:30–9:10 AM</div>
+      <div class="venue">Metreon AMC, L3, Theatre 11 <span style="background:#e0e7ff;color:#3730a3;padding:0 4px;border-radius:4px;font-size:0.56rem;">①</span></div>
+      <div class="avatar-row"><span class="avatar avatar-g">G</span></div>
+    </div>
+
+    <!-- 10:00 Á: VIP Seating -->
+    <div class="event ev-a left-half" style="top:120px;height:30px;">
+      <span class="badge badge-vip">VIP</span>
+      <div class="event-title">VIP Seating at the Main Keynote</div>
+      <div class="event-time">10:00 AM</div>
+      <div class="avatar-row"><span class="avatar avatar-a">Á</span></div>
+    </div>
+
+    <!-- 10:00–12:00 G+Á: Dreamforce Main Keynote — COINCIDEN -->
+    <div class="event ev-ga right-half" style="top:120px;height:120px;padding:6px 8px;">
+      <div style="display:flex;align-items:center;gap:5px;margin-bottom:3px;">
+        <span style="font-size:0.9rem;">🤝</span>
+        <span style="font-weight:800;font-size:0.78rem;color:#0369a1;">Dreamforce Main Keynote 2026</span>
+      </div>
+      <div style="font-size:0.6rem;color:#555;margin-bottom:2px;">10:00 AM–12:00 PM</div>
+      <div class="venue">Moscone South, LL, Keynote Hall B <span style="background:#e0e7ff;color:#3730a3;padding:0 4px;border-radius:4px;font-size:0.56rem;">⑦</span></div>
+      <div class="avatar-row" style="margin-top:4px;">
+        <span class="avatar avatar-g">G</span>
+        <span style="font-size:0.75rem;color:#0ea5e9;font-weight:700;">+</span>
+        <span class="avatar avatar-a">Á</span>
+      </div>
+    </div>
+
+    <!-- 12:30 G: Next-Gen Call Center -->
+    <div class="event ev-g" style="top:270px;height:28px;">
+      <span class="badge badge-theater">Theater</span>
+      <div class="event-title">Next-Gen Call Center with Salesforce</div>
+      <div class="event-time">12:30–12:50 PM</div>
+      <div class="venue">Metreon AMC <span style="background:#e0e7ff;color:#3730a3;padding:0 4px;border-radius:4px;font-size:0.56rem;">①</span></div>
+      <div class="avatar-row"><span class="avatar avatar-g">G</span></div>
+    </div>
+
+    <!-- 13:30 Á: Enterprise AI Harness -->
+    <div class="event ev-a" style="top:330px;height:55px;">
+      <span class="badge badge-keynote">Keynote</span>
+      <div class="event-title">The Enterprise AI Harness for the Agentic Enterprise</div>
+      <div class="event-time">1:30–2:30 PM</div>
+      <div class="venue">Por confirmar</div>
+      <div class="avatar-row"><span class="avatar avatar-a">Á</span></div>
+    </div>
+
+    <!-- 15:00 Á: ROI or it Didn't Happen -->
+    <div class="event ev-a" style="top:420px;height:55px;">
+      <span class="badge badge-breakout">Breakout</span>
+      <div class="event-title">ROI or it Didn't Happen: The Case for AI That Pays Back Now</div>
+      <div class="event-time">3:00–4:00 PM</div>
+      <div class="venue">InterContinental, L5, Ballroom C, RT10 <span style="background:#e0e7ff;color:#3730a3;padding:0 4px;border-radius:4px;font-size:0.56rem;">④</span></div>
+      <div class="avatar-row"><span class="avatar avatar-a">Á</span></div>
+    </div>
+
+    <!-- 16:00 Á: The Competition Already... -->
+    <div class="event ev-a left-half" style="top:480px;height:55px;">
+      <span class="badge badge-breakout">Breakout</span>
+      <div class="event-title">The Competition Already has Support Agents. Are You Ready?</div>
+      <div class="event-time">4:00–5:00 PM</div>
+      <div class="venue">Por confirmar</div>
+      <div class="avatar-row"><span class="avatar avatar-a">Á</span></div>
+    </div>
+
+    <!-- 16:00 Á: Your Board Wants Results -->
+    <div class="event ev-a right-half" style="top:480px;height:55px;">
+      <span class="badge badge-breakout">Breakout</span>
+      <div class="event-title">Your Board Wants Results. Here's What to Show Them</div>
+      <div class="event-time">4:00–5:00 PM</div>
+      <div class="venue">Por confirmar</div>
+      <div class="avatar-row"><span class="avatar avatar-a">Á</span></div>
+    </div>
+
+    <!-- 17:00 Á: Beyond Agentforce 1,500 Leaders -->
+    <div class="event ev-a" style="top:540px;height:45px;">
+      <span class="badge badge-keynote">Keynote</span>
+      <div class="event-title">Beyond Agentforce: 1,500 Leaders on Scaling Enterprise AI</div>
+      <div class="event-time">5:00–6:00 PM</div>
+      <div class="venue">Por confirmar</div>
+      <div class="avatar-row"><span class="avatar avatar-a">Á</span></div>
+    </div>
+
+  </div></div>
+
+  <!-- ═══════════════ MIÉRCOLES 16 ═══════════════ -->
+  <div class="day-col"><div class="day-col-inner">
+    <div class="hour-line"></div><div class="hour-line"></div><div class="hour-line"></div>
+    <div class="hour-line"></div><div class="hour-line"></div><div class="hour-line"></div>
+    <div class="hour-line"></div><div class="hour-line"></div><div class="hour-line"></div>
+    <div class="hour-line"></div><div class="hour-line"></div><div class="hour-line"></div>
+    <div class="hour-line"></div>
+
+    <!-- 8:30 G: Maximize Event Pipeline -->
+    <div class="event ev-g" style="top:30px;height:38px;">
+      <span class="badge badge-theater">Theater</span>
+      <div class="event-title">Maximize Event Pipeline and ROI With an AI SDR Agent</div>
+      <div class="event-time">8:30–9:00 AM</div>
+      <div class="venue">Por confirmar</div>
+      <div class="avatar-row"><span class="avatar avatar-g">G</span></div>
+    </div>
+
+    <!-- 9:00 G: Payclip -->
+    <div class="event ev-g" style="top:60px;height:60px;">
+      <span class="badge badge-meeting">Meeting</span>
+      <div class="event-title">Payclip</div>
+      <div class="event-time">9:00–9:55 AM</div>
+      <div class="venue">Moscone South, MZ, Exec. Meeting Suite <span style="background:#e0e7ff;color:#3730a3;padding:0 4px;border-radius:4px;font-size:0.56rem;">⑦</span></div>
+      <div class="avatar-row"><span class="avatar avatar-g">G</span></div>
+    </div>
+
+    <!-- 10:00 Á: Beyond the AI Honeymoon -->
+    <div class="event ev-a" style="top:120px;height:50px;right:51%;">
+      <span class="badge badge-breakout">Breakout</span>
+      <div class="event-title">Beyond the AI Honeymoon</div>
+      <div class="event-time">10:00–11:00 AM</div>
+      <div class="avatar-row"><span class="avatar avatar-a">Á</span></div>
+    </div>
+
+    <!-- 10:00 Á: Beyond the Chatbot -->
+    <div class="event ev-a" style="top:120px;height:50px;left:51%;right:3px;">
+      <span class="badge badge-breakout">Breakout</span>
+      <div class="event-title">Beyond the Chatbot: Co-pilots & Agents</div>
+      <div class="event-time">10:00–11:00 AM</div>
+      <div class="avatar-row"><span class="avatar avatar-a">Á</span></div>
+    </div>
+
+    <!-- 10:00 G+Á: Payclip — COINCIDEN -->
+    <div class="event ev-ga" style="top:120px;height:60px;padding:5px 7px;">
+      <div style="display:flex;align-items:center;gap:4px;margin-bottom:2px;">
+        <span>🤝</span>
+        <span style="font-weight:800;font-size:0.75rem;color:#0369a1;">Payclip</span>
+        <span class="badge badge-meeting">Meeting</span>
+      </div>
+      <div style="font-size:0.58rem;color:#555;margin-bottom:1px;">10:00–11:00 AM</div>
+      <div class="venue" style="margin-bottom:3px;">Moscone South, MZ, Exec. Meeting Suite <span style="background:#e0e7ff;color:#3730a3;padding:0 4px;border-radius:4px;font-size:0.56rem;">⑦</span></div>
+      <div class="avatar-row"><span class="avatar avatar-g">G</span><span style="font-size:0.7rem;color:#0ea5e9;font-weight:700;">+</span><span class="avatar avatar-a">Á</span></div>
+    </div>
+
+    <!-- 11:00 Á: Reskilling at Speed -->
+    <div class="event ev-a left-half" style="top:180px;height:50px;">
+      <span class="badge badge-breakout">Breakout</span>
+      <div class="event-title">Reskilling at Speed</div>
+      <div class="event-time">11:00 AM–12:00 PM</div>
+      <div class="avatar-row"><span class="avatar avatar-a">Á</span></div>
+    </div>
+
+    <!-- 13:00 Á: Who Will Win in 2027 -->
+    <div class="event ev-a" style="top:300px;height:50px;">
+      <span class="badge badge-keynote">Keynote</span>
+      <div class="event-title">Who Will Win in 2027, and Why</div>
+      <div class="event-time">1:00–2:00 PM</div>
+      <div class="avatar-row"><span class="avatar avatar-a">Á</span></div>
+    </div>
+
+    <!-- 14:00 Á: Your Agentic Blueprint -->
+    <div class="event ev-a" style="top:360px;height:50px;">
+      <span class="badge badge-workshop">Workshop</span>
+      <div class="event-title">Your Agentic Blueprint</div>
+      <div class="event-time">2:00–3:00 PM</div>
+      <div class="avatar-row"><span class="avatar avatar-a">Á</span></div>
+    </div>
+
+    <!-- 2:15 G: Customer Success Keynote -->
+    <div class="event ev-g" style="top:375px;height:55px;left:52%;right:3px;">
+      <span class="badge badge-keynote">Keynote</span>
+      <div class="event-title">Customer Success Keynote: Achieving What's Possible</div>
+      <div class="event-time">2:15–3:05 PM</div>
+      <div class="venue">Moscone West, L3, Keynote Room 3001 <span style="background:#e0e7ff;color:#3730a3;padding:0 4px;border-radius:4px;font-size:0.56rem;">⑧</span></div>
+      <div class="avatar-row"><span class="avatar avatar-g">G</span></div>
+    </div>
+
+    <!-- 3:45 G: Data 360 Keynote -->
+    <div class="event ev-g" style="top:465px;height:55px;">
+      <span class="badge badge-keynote">Keynote</span>
+      <div class="event-title">Data 360 Keynote: Context Is Your AI Advantage</div>
+      <div class="event-time">3:45–4:35 PM</div>
+      <div class="venue">Moscone West, L3, Keynote Room 3001 <span style="background:#e0e7ff;color:#3730a3;padding:0 4px;border-radius:4px;font-size:0.56rem;">⑧</span></div>
+      <div class="avatar-row"><span class="avatar avatar-g">G</span></div>
+    </div>
+
+    <!-- 17:00 Á: How OpenAI Gets Work Done -->
+    <div class="event ev-a left-half" style="top:540px;height:50px;">
+      <span class="badge badge-breakout">Breakout</span>
+      <div class="event-title">How OpenAI Gets Work Done</div>
+      <div class="event-time">5:00–6:00 PM</div>
+      <div class="avatar-row"><span class="avatar avatar-a">Á</span></div>
+    </div>
+
+    <!-- 17:00 Á: The Qualified Keynote -->
+    <div class="event ev-a right-half" style="top:540px;height:50px;">
+      <span class="badge badge-keynote">Keynote</span>
+      <div class="event-title">The Qualified Keynote: Generate Pipeline at Scale</div>
+      <div class="event-time">5:00–6:00 PM</div>
+      <div class="avatar-row"><span class="avatar avatar-a">Á</span></div>
+    </div>
+
+  </div></div>
+
+  <!-- ═══════════════ JUEVES 17 ═══════════════ -->
+  <div class="day-col"><div class="day-col-inner">
+    <div class="hour-line"></div><div class="hour-line"></div><div class="hour-line"></div>
+    <div class="hour-line"></div><div class="hour-line"></div><div class="hour-line"></div>
+    <div class="hour-line"></div><div class="hour-line"></div><div class="hour-line"></div>
+    <div class="hour-line"></div><div class="hour-line"></div><div class="hour-line"></div>
+    <div class="hour-line"></div>
+
+    <!-- 9:00 G: Data 360 Headless -->
+    <div class="event ev-g" style="top:60px;height:40px;">
+      <span class="badge badge-breakout">Breakout</span>
+      <div class="event-title">Data 360 Headless: Your Trusted Context, Anywhere AI Works</div>
+      <div class="event-time">9:00–9:40 AM</div>
+      <div class="avatar-row"><span class="avatar avatar-g">G</span></div>
+    </div>
+
+    <!-- 10:00 Á: The AI Mindset Shift -->
+    <div class="event ev-a" style="top:120px;height:50px;">
+      <span class="badge badge-keynote">Keynote</span>
+      <div class="event-title">The AI Mindset Shift</div>
+      <div class="event-time">10:00–11:00 AM</div>
+      <div class="avatar-row"><span class="avatar avatar-a">Á</span></div>
+    </div>
+
+    <!-- 11:00 G+Á: BradesCard Meeting — COINCIDEN -->
+    <div class="event ev-ga" style="top:180px;height:78px;padding:6px 8px;">
+      <div style="display:flex;align-items:center;gap:5px;margin-bottom:2px;">
+        <span style="font-size:0.9rem;">🤝</span>
+        <span style="font-weight:800;font-size:0.78rem;color:#0369a1;">BradesCard</span>
+        <span class="badge badge-meeting">Meeting</span>
+      </div>
+      <div style="font-size:0.58rem;color:#555;margin-bottom:1px;">11:00–11:55 AM</div>
+      <div class="venue" style="margin-bottom:3px;">Moscone South, MZ, Exec. Meeting Suite 100 <span style="background:#e0e7ff;color:#3730a3;padding:0 4px;border-radius:4px;font-size:0.56rem;">⑦</span></div>
+      <div class="avatar-row">
+        <span class="avatar avatar-g">G</span>
+        <span style="font-size:0.75rem;color:#0ea5e9;font-weight:700;">+</span>
+        <span class="avatar avatar-a">Á</span>
+      </div>
+    </div>
+
+    <!-- 11:00 Á: Beyond the AI Honeymoon Building -->
+    <div class="event ev-a left-half" style="top:180px;height:60px;">
+      <span class="badge badge-breakout">Breakout</span>
+      <div class="event-title">Beyond the AI Honeymoon: Building Lasting ROI</div>
+      <div class="event-time">11:00 AM–12:00 PM</div>
+      <div class="avatar-row"><span class="avatar avatar-a">Á</span></div>
+    </div>
+
+    <!-- 11:30 Á: Admin Keynote -->
+    <div class="event ev-a right-half" style="top:210px;height:55px;">
+      <span class="badge badge-keynote">Keynote</span>
+      <div class="event-title">Admin Keynote: Bring the Agentic Enterprise to Life</div>
+      <div class="event-time">11:30 AM–12:30 PM</div>
+      <div class="avatar-row"><span class="avatar avatar-a">Á</span></div>
+    </div>
+
+    <!-- 12:00 Á: Leading Humans + Agents Together -->
+    <div class="event ev-a left-half" style="top:240px;height:50px;">
+      <span class="badge badge-breakout">Breakout</span>
+      <div class="event-title">Leading Humans + Agents Together</div>
+      <div class="event-time">12:00–1:00 PM</div>
+      <div class="avatar-row"><span class="avatar avatar-a">Á</span></div>
+    </div>
+
+    <!-- 12:00 G: How Agentic AI Delivers ROI -->
+    <div class="event ev-g" style="top:240px;height:30px;left:52%;right:3px;">
+      <span class="badge badge-theater">Theater</span>
+      <div class="event-title">How Agentic AI Delivers ROI in Regulated Finance</div>
+      <div class="event-time">12:00–12:30 PM</div>
+      <div class="avatar-row"><span class="avatar avatar-g">G</span></div>
+    </div>
+
+    <!-- 1:30 G: Banking on AI -->
+    <div class="event ev-g" style="top:330px;height:40px;">
+      <span class="badge badge-breakout">Breakout</span>
+      <div class="event-title">Banking on AI: Reinventing Sales & Service with Agentforce</div>
+      <div class="event-time">1:30–2:10 PM</div>
+      <div class="avatar-row"><span class="avatar avatar-g">G</span></div>
+    </div>
+
+    <!-- 2:30 G: Money Talks -->
+    <div class="event ev-g" style="top:390px;height:30px;">
+      <span class="badge badge-theater">Theater</span>
+      <div class="event-title">Money Talks: Agentic Analytics for Financial Services</div>
+      <div class="event-time">2:30–3:00 PM</div>
+      <div class="avatar-row"><span class="avatar avatar-g">G</span></div>
+    </div>
+
+    <!-- 3:00 G: Roadmap Agentforce -->
+    <div class="event ev-g" style="top:420px;height:40px;">
+      <span class="badge badge-breakout">Breakout</span>
+      <div class="event-title">Roadmap: Agentforce Innovations for Banking & Wealth</div>
+      <div class="event-time">3:00–3:40 PM</div>
+      <div class="avatar-row"><span class="avatar avatar-g">G</span></div>
+    </div>
+
+    <!-- 4:00 G: Banca Mifel -->
+    <div class="event ev-g" style="top:480px;height:55px;">
+      <span class="badge badge-meeting">Meeting</span>
+      <div class="event-title">Banca Mifel</div>
+      <div class="event-time">4:00–4:55 PM · LATAM Lounge 2</div>
+      <div class="avatar-row"><span class="avatar avatar-g">G</span></div>
+    </div>
+
+  </div></div>
+
+</div>
+
+<!-- COINCIDENCIAS RESUMEN -->
+<div class="overlap-banner">
+  <h3>🤝 Coincidencias — Tú y Álvaro</h3>
+  <ul>
+    <li><strong>Mar 15 · 10:00 AM–12:00 PM:</strong> <em>Dreamforce Main Keynote 2026</em> — Moscone South, Hall B</li>
+    <li><strong>Mié 16 · 10:00–11:00 AM:</strong> <em>Payclip Meeting</em> — Executive Meeting Suite 100</li>
+    <li><strong>Jue 17 · 11:00–11:55 AM:</strong> <em>BradesCard Meeting</em> — Executive Meeting Suite 100 (Capacity 8)</li>
+  </ul>
+</div>
+
+<!-- MAPA DE VENUES -->
+<div class="map-legend">
+  <h3>🗺️ Referencia de venues — Dreamforce 2026</h3>
+  <div class="map-grid">
+    <div class="map-item"><div class="map-num">1</div><div><b>AMC / Metreon</b><br><span>Breakout Sessions · F&B</span></div></div>
+    <div class="map-item"><div class="map-num">2</div><div><b>City View</b><br><span>International Lounge · LATAM · EMEA</span></div></div>
+    <div class="map-item"><div class="map-num">3</div><div><b>Howard St.</b><br><span>Dreampark</span></div></div>
+    <div class="map-item"><div class="map-num">4</div><div><b>InterContinental Hotel</b><br><span>Invite-only Roundtables · Breakout Sessions</span></div></div>
+    <div class="map-item"><div class="map-num">5</div><div><b>Marriott Marquis</b><br><span>Training Center (HOTs & Certs) · Partner Lounge</span></div></div>
+    <div class="map-item"><div class="map-num">6</div><div><b>Moscone North</b><br><span>L1: Dreamstore · LL: Campground & Agentic Enterprise</span></div></div>
+    <div class="map-item"><div class="map-num">7</div><div><b>Moscone South ⭐</b><br><span>LL: Keynote + Breakout · MZ: Executive Meeting Suite · L2: Executive Summit</span></div></div>
+    <div class="map-item"><div class="map-num">8</div><div><b>Moscone West</b><br><span>L2 & L3: Breakout Sessions · L2 & L3: Keynote Sessions</span></div></div>
+    <div class="map-item"><div class="map-num">9</div><div><b>SF MoMA</b><br><span>Sponsor Activations / Events</span></div></div>
+    <div class="map-item"><div class="map-num">10</div><div><b>St. Regis Hotel</b><br><span>CXO Program</span></div></div>
+    <div class="map-item"><div class="map-num">14</div><div><b>Build Shield of CA Theater (YBCA)</b><br><span>Keynote Sessions</span></div></div>
+    <div class="map-item"><div class="map-num">15</div><div><b>Contemporary Jewish Museum</b><br><span>Dreamforce Lounges</span></div></div>
+  </div>
+  <p style="font-size:0.7rem;color:#888;margin-top:10px;">⭐ Moscone South es el hub principal: el Executive Meeting Suite (MZ) es donde se realizan las reuniones de Payclip y BradesCard.</p>
+</div>
+
+<p class="tz-note">Horarios en hora del Pacífico (PT) · Dreamforce 2026 · San Francisco</p>
+
+</body>
+</html>

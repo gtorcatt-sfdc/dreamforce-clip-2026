@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mapa Clip — Dreamforce 2026</title>
+<style>
+  :root { color-scheme: light; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f4f8; color: #1a2533; padding: 20px; }
+
+  h1 { text-align: center; font-size: 1.4rem; color: #0d2a4e; margin-bottom: 4px; }
+  .subtitle { text-align: center; color: #5a7a9a; font-size: 0.85rem; margin-bottom: 16px; }
+
+  /* Day tabs */
+  .tabs { display:flex; gap:8px; justify-content:center; margin-bottom:16px; }
+  .tab { padding:8px 24px; border-radius:20px; border:2px solid #0d2a4e; background:white; color:#0d2a4e; font-weight:700; font-size:0.85rem; cursor:pointer; transition:all 0.2s; }
+  .tab.active { background:#0d2a4e; color:white; }
+  .tab:hover:not(.active) { background:#e8f0fe; }
+
+  /* Main layout */
+  .layout { display:grid; grid-template-columns: 1fr 340px; gap:16px; max-width:1100px; margin:0 auto; }
+
+  /* Map */
+  .map-wrap { background:white; border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,0.1); padding:16px; position:relative; }
+  .map-wrap h3 { font-size:0.85rem; color:#0d2a4e; margin-bottom:10px; }
+  svg.map { width:100%; border-radius:8px; }
+
+  /* Timeline panel */
+  .timeline { background:white; border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,0.1); padding:16px; overflow-y:auto; max-height:600px; }
+  .timeline h3 { font-size:0.85rem; color:#0d2a4e; margin-bottom:12px; }
+  .tl-item { display:flex; gap:10px; margin-bottom:4px; position:relative; }
+  .tl-left { width:52px; text-align:right; flex-shrink:0; }
+  .tl-time { font-size:0.68rem; color:#5a7a9a; font-weight:600; padding-top:6px; }
+  .tl-line { width:3px; flex-shrink:0; position:relative; }
+  .tl-dot { width:12px; height:12px; border-radius:50%; position:absolute; left:-5px; top:6px; border:2px solid white; box-shadow:0 0 0 1px #ccc; }
+  .tl-content { flex:1; padding-bottom:12px; }
+  .tl-card { border-radius:8px; padding:8px 10px; font-size:0.72rem; line-height:1.4; }
+  .tl-card .session { font-weight:700; }
+  .tl-card .venue-tag { font-size:0.62rem; color:#555; margin-top:2px; display:flex; align-items:center; gap:3px; }
+  .tl-card .venue-tag::before { content:'📍'; }
+  .tl-card .people { font-size:0.62rem; margin-top:4px; display:flex; gap:4px; }
+
+  /* Transit alert */
+  .transit { display:flex; align-items:center; gap:6px; font-size:0.65rem; padding:4px 8px; border-radius:6px; margin-top:2px; margin-bottom:2px; }
+  .transit-ok   { background:#dcfce7; color:#166534; }
+  .transit-warn { background:#fef9c3; color:#854d0e; }
+  .transit-tight { background:#fee2e2; color:#991b1b; animation: blink 1.5s infinite; }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.6} }
+
+  /* Person avatars */
+  .av { display:inline-block; font-size:0.62rem; padding:1px 7px; border-radius:10px; font-weight:700; }
+  .av-g { background:#16a34a; color:white; }
+  .av-a { background:#7c3aed; color:white; }
+
+  /* Colors by person */
+  .card-g    { background:#dcfce7; border-left:3px solid #16a34a; }
+  .card-a    { background:#ede9fe; border-left:3px solid #7c3aed; }
+  .card-ga   { background:white; border:2px solid #0ea5e9; box-shadow:0 0 6px rgba(14,165,233,0.3); }
+  .line-g    { background:#16a34a; }
+  .line-a    { background:#7c3aed; }
+  .line-ga   { background:linear-gradient(180deg,#16a34a 50%,#7c3aed 50%); }
+  .dot-g     { background:#16a34a; }
+  .dot-a     { background:#7c3aed; }
+  .dot-ga    { background:#0ea5e9; }
+
+  /* Day panels */
+  .day-panel { display:none; }
+  .day-panel.active { display:contents; }
+
+  /* Legend */
+  .legend { display:flex; gap:12px; justify-content:center; margin-bottom:12px; flex-wrap:wrap; font-size:0.78rem; }
+  .legend-item { display:flex; align-items:center; gap:5px; }
+  .leg-box { width:14px; height:14px; border-radius:3px; }
+
+  /* Venue chips on map */
+  .venue-chip { font-size:10px; font-weight:700; }
+</style>
+</head>
+<body>
+
+<h1>🗺️ Mapa de Traslados — Clip @ Dreamforce 2026</h1>
+<p class="subtitle">Visualiza si hay tiempo suficiente para moverse entre sesiones</p>
+
+<div class="legend">
+  <div class="legend-item"><span class="av av-g">G</span> Tú</div>
+  <div class="legend-item"><span class="av av-a">Á</span> Álvaro</div>
+  <div class="legend-item"><div class="leg-box" style="background:#dcfce7;border:2px solid #16a34a;"></div> Solo tú</div>
+  <div class="legend-item"><div class="leg-box" style="background:#ede9fe;border:2px solid #7c3aed;"></div> Solo Álvaro</div>
+  <div class="legend-item"><div class="leg-box" style="background:white;border:2px solid #0ea5e9;"></div> Coinciden</div>
+  <div class="legend-item"><div style="width:32px;height:8px;background:#dcfce7;border:1px solid #16a34a;border-radius:4px;"></div> OK (&gt;20 min)</div>
+  <div class="legend-item"><div style="width:32px;height:8px;background:#fef9c3;border:1px solid #ca8a04;border-radius:4px;"></div> Justo (10–20 min)</div>
+  <div class="legend-item"><div style="width:32px;height:8px;background:#fee2e2;border:1px solid #dc2626;border-radius:4px;"></div> Apretado (&lt;10 min)</div>
+</div>
+
+<div class="tabs">
+  <div class="tab active" onclick="switchDay('mar')">MAR 15</div>
+  <div class="tab" onclick="switchDay('mie')">MIÉ 16</div>
+  <div class="tab" onclick="switchDay('jue')">JUE 17</div>
+</div>
+
+<div class="layout">
+
+  <!-- SVG MAP -->
+  <div class="map-wrap">
+    <h3>Perímetro Dreamforce 2026 — San Francisco</h3>
+    <svg class="map" viewBox="0 0 620 440" xmlns="http://www.w3.org/2000/svg">
+      <!-- Background -->
+      <rect width="620" height="440" fill="#e8f4f8" rx="8"/>
+
+      <!-- Streets labels -->
+      <text x="10" y="230" fill="#94a3b8" font-size="9" transform="rotate(-90,10,230)">4th St</text>
+      <text x="290" y="435" fill="#94a3b8" font-size="9" text-anchor="middle">Howard St (Dreampark)</text>
+      <text x="430" y="200" fill="#94a3b8" font-size="9" transform="rotate(90,430,200)">Mission St</text>
+
+      <!-- BUILDINGS -->
+      <!-- Moscone West (large, left) -->
+      <rect x="40" y="120" width="160" height="160" rx="6" fill="#bfdbfe" stroke="#3b82f6" stroke-width="2"/>
+      <text x="120" y="190" text-anchor="middle" fill="#1e3a8a" font-size="11" font-weight="bold">Moscone</text>
+      <text x="120" y="205" text-anchor="middle" fill="#1e3a8a" font-size="11" font-weight="bold">West</text>
+      <text x="120" y="222" text-anchor="middle" fill="#3b82f6" font-size="9">⑧</text>
+
+      <!-- Moscone North (center) -->
+      <rect x="310" y="200" width="130" height="90" rx="6" fill="#bfdbfe" stroke="#3b82f6" stroke-width="2"/>
+      <text x="375" y="242" text-anchor="middle" fill="#1e3a8a" font-size="10" font-weight="bold">Moscone</text>
+      <text x="375" y="256" text-anchor="middle" fill="#1e3a8a" font-size="10" font-weight="bold">North</text>
+      <text x="375" y="272" text-anchor="middle" fill="#3b82f6" font-size="9">⑥</text>
+
+      <!-- Moscone South (bottom right) -->
+      <rect x="310" y="320" width="180" height="100" rx="6" fill="#bfdbfe" stroke="#3b82f6" stroke-width="2"/>
+      <text x="400" y="362" text-anchor="middle" fill="#1e3a8a" font-size="10" font-weight="bold">Moscone</text>
+      <text x="400" y="376" text-anchor="middle" fill="#1e3a8a" font-size="10" font-weight="bold">South ⭐</text>
+      <text x="400" y="392" text-anchor="middle" fill="#3b82f6" font-size="9">⑦ Keynote · Exec Mtg Suite</text>
+
+      <!-- AMC/Metreon (top center) -->
+      <rect x="245" y="100" width="100" height="80" rx="6" fill="#bfdbfe" stroke="#3b82f6" stroke-width="2"/>
+      <text x="295" y="138" text-anchor="middle" fill="#1e3a8a" font-size="10" font-weight="bold">AMC &amp;</text>
+      <text x="295" y="152" text-anchor="middle" fill="#1e3a8a" font-size="10" font-weight="bold">Metreon</text>
+      <text x="295" y="168" text-anchor="middle" fill="#3b82f6" font-size="9">①</text>
+
+      <!-- InterContinental (far left) -->
+      <rect x="10" y="280" width="80" height="60" rx="6" fill="#bfdbfe" stroke="#3b82f6" stroke-width="2"/>
+      <text x="50" y="308" text-anchor="middle" fill="#1e3a8a" font-size="9" font-weight="bold">InterCon</text>
+      <text x="50" y="322" text-anchor="middle" fill="#3b82f6" font-size="9">④</text>
+
+      <!-- City View -->
+      <rect x="220" y="210" width="75" height="50" rx="6" fill="#bfdbfe" stroke="#3b82f6" stroke-width="2"/>
+      <text x="258" y="233" text-anchor="middle" fill="#1e3a8a" font-size="9" font-weight="bold">City View</text>
+      <text x="258" y="248" text-anchor="middle" fill="#3b82f6" font-size="9">②</text>
+
+      <!-- Marriott Marquis (top right) -->
+      <rect x="460" y="60" width="90" height="70" rx="6" fill="#bfdbfe" stroke="#3b82f6" stroke-width="2"/>
+      <text x="505" y="92" text-anchor="middle" fill="#1e3a8a" font-size="9" font-weight="bold">Marriott</text>
+      <text x="505" y="106" text-anchor="middle" fill="#1e3a8a" font-size="9" font-weight="bold">Marquis</text>
+      <text x="505" y="120" text-anchor="middle" fill="#3b82f6" font-size="9">⑤</text>
+
+      <!-- St Regis -->
+      <rect x="560" y="160" width="55" height="55" rx="6" fill="#bfdbfe" stroke="#3b82f6" stroke-width="2"/>
+      <text x="588" y="185" text-anchor="middle" fill="#1e3a8a" font-size="8" font-weight="bold">St. Regis</text>
+      <text x="588" y="200" text-anchor="middle" fill="#3b82f6" font-size="8">⑩</text>
+
+      <!-- YBG/YBF area -->
+      <rect x="450" y="170" width="95" height="70" rx="6" fill="#d1fae5" stroke="#10b981" stroke-width="1.5"/>
+      <text x="498" y="202" text-anchor="middle" fill="#065f46" font-size="9" font-weight="bold">Yerba Buena</text>
+      <text x="498" y="216" text-anchor="middle" fill="#065f46" font-size="9">Gardens / Forum</text>
+      <text x="498" y="230" text-anchor="middle" fill="#10b981" font-size="8">⑫⑬</text>
+
+      <!-- Dreampark (Howard St) -->
+      <rect x="210" y="310" width="85" height="30" rx="4" fill="#fef9c3" stroke="#ca8a04" stroke-width="1.5"/>
+      <text x="253" y="329" text-anchor="middle" fill="#854d0e" font-size="8" font-weight="bold">Dreampark ③</text>
+
+      <!-- Perimeter outline -->
+      <rect x="35" y="95" width="555" height="335" rx="8" fill="none" stroke="#f59e0b" stroke-width="2.5" stroke-dasharray="8,4"/>
+
+      <!-- Security checkpoints -->
+      <polygon points="250,97 258,110 242,110" fill="#ec4899"/>
+      <polygon points="37,290 50,300 37,310" fill="#ec4899"/>
+      <polygon points="448,292 460,302 448,312" fill="#ec4899"/>
+      <polygon points="490,430 500,418 510,430" fill="#ec4899"/>
+
+      <!-- ROUTES - day specific, shown via JS -->
+      <g id="routes-mar" style="display:block">
+        <!-- G: Future-Proof (AMC ①) → Keynote (Moscone South ⑦): ~8 min walk, 90 min gap = OK -->
+        <line x1="295" y1="180" x2="400" y2="320" stroke="#16a34a" stroke-width="2.5" stroke-dasharray="6,3" marker-end="url(#arrow-g)" opacity="0.7"/>
+        <!-- G+J: Keynote (⑦) → Next-Gen (AMC ①): 30 min gap, ~8 min walk = OK -->
+        <line x1="380" y1="320" x2="275" y2="180" stroke="#16a34a" stroke-width="2.5" stroke-dasharray="6,3" marker-end="url(#arrow-g)" opacity="0.7"/>
+        <!-- Á: Keynote (⑦) → Enterprise AI Harness: TBD -->
+      </g>
+
+      <g id="routes-mie" style="display:none">
+        <!-- G: Payclip (⑦) → From Silos (AMC ①): ~8 min, 90 min gap = OK -->
+        <line x1="380" y1="330" x2="275" y2="180" stroke="#16a34a" stroke-width="2.5" stroke-dasharray="6,3" marker-end="url(#arrow-g)" opacity="0.7"/>
+        <!-- G: From Silos (AMC ①) → Customer Success Keynote (Moscone West ⑧): ~10 min walk, ~65 min gap = OK -->
+        <line x1="265" y1="180" x2="120" y2="200" stroke="#16a34a" stroke-width="2.5" stroke-dasharray="6,3" marker-end="url(#arrow-g)" opacity="0.7"/>
+        <!-- G: Customer Success Keynote (⑧) → Data360 Keynote (⑧): same venue! = OK -->
+        <circle cx="120" cy="200" r="18" fill="none" stroke="#16a34a" stroke-width="2" stroke-dasharray="4,2" opacity="0.7"/>
+        <text x="120" y="175" text-anchor="middle" fill="#16a34a" font-size="9" font-weight="bold">mismo lugar</text>
+      </g>
+
+      <g id="routes-jue" style="display:none">
+        <!-- G: Data360 Headless → BradesCard (⑦): need venue for Data360, placeholder Moscone West → South -->
+        <line x1="120" y1="200" x2="370" y2="325" stroke="#16a34a" stroke-width="2.5" stroke-dasharray="6,3" marker-end="url(#arrow-g)" opacity="0.7"/>
+        <!-- G: BradesCard (⑦) → How Agentic (TBD) → Banking on AI (Moscone West ⑧) -->
+        <line x1="420" y1="325" x2="120" y2="240" stroke="#16a34a" stroke-width="2.5" stroke-dasharray="6,3" marker-end="url(#arrow-g)" opacity="0.7"/>
+      </g>
+
+      <!-- Arrow markers -->
+      <defs>
+        <marker id="arrow-g" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+          <path d="M0,0 L0,6 L8,3 z" fill="#16a34a"/>
+        </marker>
+        <marker id="arrow-a" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+          <path d="M0,0 L0,6 L8,3 z" fill="#7c3aed"/>
+        </marker>
+      </defs>
+
+      <!-- ACTIVE VENUES — dots updated by JS -->
+      <g id="venue-dots"></g>
+    </svg>
+
+    <p style="font-size:0.68rem;color:#888;margin-top:8px;">⭐ = hub principal · Las líneas punteadas muestran traslados entre sesiones consecutivas</p>
+  </div>
+
+  <!-- TIMELINE PANEL -->
+  <div class="timeline">
+    <h3 id="tl-title">📋 Agenda — Martes 15</h3>
+
+    <!-- MAR 15 -->
+    <div id="tl-mar" class="day-panel active">
+
+      <div class="tl-item">
+        <div class="tl-left"><div class="tl-time">8:30</div></div>
+        <div class="tl-line"><div class="tl-dot dot-g" style="background:#16a34a;"></div><div style="height:100%;background:#16a34a;margin-left:4px;width:3px;"></div></div>
+        <div class="tl-content">
+          <div class="tl-card card-g">
+            <div class="session">Future-Proof Your Customer Service</div>
+            <div class="venue-tag">Metreon AMC, L3, Theatre 11 ①</div>
+            <div class="people"><span class="av av-g">G</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="transit transit-ok">✅ 80 min hasta el siguiente · ~8 min a pie a Moscone South</div>
+
+      <div class="tl-item">
+        <div class="tl-left"><div class="tl-time">10:00</div></div>
+        <div class="tl-line"><div class="tl-dot dot-ga" style="background:#0ea5e9;"></div></div>
+        <div class="tl-content">
+          <div class="tl-card card-ga">
+            <div class="session">🤝 Dreamforce Main Keynote 2026</div>
+            <div class="venue-tag">Moscone South, LL, Hall B ⑦</div>
+            <div class="people"><span class="av av-g">G</span><span class="av av-a">Á</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="transit transit-ok">✅ 30 min hasta el siguiente · ~8 min a pie de regreso al AMC</div>
+
+      <div class="tl-item">
+        <div class="tl-left"><div class="tl-time">12:30</div></div>
+        <div class="tl-line"><div class="tl-dot dot-g" style="background:#16a34a;"></div></div>
+        <div class="tl-content">
+          <div class="tl-card card-g">
+            <div class="session">Next-Gen Call Center with Salesforce</div>
+            <div class="venue-tag">Metreon AMC ①</div>
+            <div class="people"><span class="av av-g">G</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div style="height:12px;"></div>
+
+      <div class="tl-item">
+        <div class="tl-left"><div class="tl-time">13:30</div></div>
+        <div class="tl-line"><div class="tl-dot dot-a" style="background:#7c3aed;"></div></div>
+        <div class="tl-content">
+          <div class="tl-card card-a">
+            <div class="session">The Enterprise AI Harness</div>
+            <div class="venue-tag">Por confirmar</div>
+            <div class="people"><span class="av av-a">Á</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="transit transit-ok">✅ 60 min · misma zona esperada</div>
+
+      <div class="tl-item">
+        <div class="tl-left"><div class="tl-time">15:00</div></div>
+        <div class="tl-line"><div class="tl-dot dot-a" style="background:#7c3aed;"></div></div>
+        <div class="tl-content">
+          <div class="tl-card card-a">
+            <div class="session">ROI or it Didn't Happen</div>
+            <div class="venue-tag">InterContinental, L5, Ballroom C, RT10 ④</div>
+            <div class="people"><span class="av av-a">Á</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="transit transit-warn">⚠️ 60 min · InterCon está fuera del perímetro principal ~12 min a pie</div>
+
+      <div class="tl-item">
+        <div class="tl-left"><div class="tl-time">16:00</div></div>
+        <div class="tl-line"><div class="tl-dot dot-a" style="background:#7c3aed;"></div></div>
+        <div class="tl-content">
+          <div class="tl-card card-a">
+            <div class="session">The Competition Has Support Agents / Your Board Wants Results</div>
+            <div class="venue-tag">Por confirmar</div>
+            <div class="people"><span class="av av-a">Á</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="tl-item">
+        <div class="tl-left"><div class="tl-time">17:00</div></div>
+        <div class="tl-line"><div class="tl-dot dot-a" style="background:#7c3aed;"></div></div>
+        <div class="tl-content">
+          <div class="tl-card card-a">
+            <div class="session">Beyond Agentforce: 1,500 Leaders on Scaling Enterprise AI</div>
+            <div class="venue-tag">Por confirmar</div>
+            <div class="people"><span class="av av-a">Á</span></div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- end tl-mar -->
+
+    <!-- MIÉ 16 -->
+    <div id="tl-mie" class="day-panel" style="display:none">
+
+      <div class="tl-item">
+        <div class="tl-left"><div class="tl-time">8:30</div></div>
+        <div class="tl-line"><div class="tl-dot dot-g" style="background:#16a34a;"></div></div>
+        <div class="tl-content">
+          <div class="tl-card card-g">
+            <div class="session">Maximize Event Pipeline &amp; ROI with AI SDR Agent</div>
+            <div class="venue-tag">Por confirmar</div>
+            <div class="people"><span class="av av-g">G</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="transit transit-ok">✅ 30 min hasta el siguiente</div>
+
+      <div class="tl-item">
+        <div class="tl-left"><div class="tl-time">9:00</div></div>
+        <div class="tl-line"><div class="tl-dot dot-g" style="background:#16a34a;"></div></div>
+        <div class="tl-content">
+          <div class="tl-card card-g">
+            <div class="session">Payclip (G)</div>
+            <div class="venue-tag">Moscone South, MZ, Exec. Meeting Suite ⑦</div>
+            <div class="people"><span class="av av-g">G</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="transit transit-warn">⚠️ 5 min entre sesiones · mismo venue</div>
+
+      <div class="tl-item">
+        <div class="tl-left"><div class="tl-time">10:00</div></div>
+        <div class="tl-line"><div class="tl-dot dot-ga" style="background:#0ea5e9;"></div></div>
+        <div class="tl-content">
+          <div class="tl-card card-ga">
+            <div class="session">🤝 Payclip (G + Á)</div>
+            <div class="venue-tag">Moscone South, MZ, Exec. Meeting Suite ⑦</div>
+            <div class="people"><span class="av av-g">G</span><span class="av av-a">Á</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="transit transit-ok">✅ 90 min hasta el siguiente · ~8 min a pie al AMC</div>
+
+      <div class="tl-item">
+        <div class="tl-left"><div class="tl-time">12:30</div></div>
+        <div class="tl-line"><div class="tl-dot dot-g" style="background:#16a34a;"></div></div>
+        <div class="tl-content">
+          <div class="tl-card card-g">
+            <div class="session">From Silos to Scale: U.S. Bank's Data 360 Transformation</div>
+            <div class="venue-tag">Metreon AMC, L3, Theatre 15 ①</div>
+            <div class="people"><span class="av av-g">G</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="transit transit-ok">✅ 65 min · ~10 min a pie a Moscone West</div>
+
+      <div class="tl-item">
+        <div class="tl-left"><div class="tl-time">14:15</div></div>
+        <div class="tl-line"><div class="tl-dot dot-g" style="background:#16a34a;"></div></div>
+        <div class="tl-content">
+          <div class="tl-card card-g">
+            <div class="session">Customer Success Keynote: Achieving What's Possible</div>
+            <div class="venue-tag">Moscone West, L3, Room 3001 ⑧</div>
+            <div class="people"><span class="av av-g">G</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="transit transit-ok">✅ 40 min · mismo venue ⑧</div>
+
+      <div class="tl-item">
+        <div class="tl-left"><div class="tl-time">15:45</div></div>
+        <div class="tl-line"><div class="tl-dot dot-g" style="background:#16a34a;"></div></div>
+        <div class="tl-content">
+          <div class="tl-card card-g">
+            <div class="session">Data 360 Keynote: Context Is Your AI Advantage</div>
+            <div class="venue-tag">Moscone West, L3, Room 3001 ⑧</div>
+            <div class="people"><span class="av av-g">G</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div style="height:8px;"></div>
+
+      <div class="tl-item">
+        <div class="tl-left"><div class="tl-time">11:00</div></div>
+        <div class="tl-line"><div class="tl-dot dot-a" style="background:#7c3aed;"></div></div>
+        <div class="tl-content">
+          <div class="tl-card card-a">
+            <div class="session">Reskilling at Speed (Á)</div>
+            <div class="venue-tag">Por confirmar</div>
+            <div class="people"><span class="av av-a">Á</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="tl-item">
+        <div class="tl-left"><div class="tl-time">13:00</div></div>
+        <div class="tl-line"><div class="tl-dot dot-a" style="background:#7c3aed;"></div></div>
+        <div class="tl-content">
+          <div class="tl-card card-a">
+            <div class="session">Who Will Win in 2027, and Why (Á)</div>
+            <div class="venue-tag">Por confirmar</div>
+            <div class="people"><span class="av av-a">Á</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="tl-item">
+        <div class="tl-left"><div class="tl-time">14:00</div></div>
+        <div class="tl-line"><div class="tl-dot dot-a" style="background:#7c3aed;"></div></div>
+        <div class="tl-content">
+          <div class="tl-card card-a">
+            <div class="session">Your Agentic Blueprint (Á)</div>
+            <div class="venue-tag">Por confirmar</div>
+            <div class="people"><span class="av av-a">Á</span></div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- end tl-mie -->
+
+    <!-- JUE 17 -->
+    <div id="tl-jue" class="day-panel" style="display:none">
+
+      <div class="tl-item">
+        <div class="tl-left"><div class="tl-time">9:00</div></div>
+        <div class="tl-line"><div class="tl-dot dot-g" style="background:#16a34a;"></div></div>
+        <div class="tl-content">
+          <div class="tl-card card-g">
+            <div class="session">Data 360 Headless: Your Trusted Context, Anywhere AI Works</div>
+            <div class="venue-tag">Metreon AMC, L3, Theatre 12 ①</div>
+            <div class="people"><span class="av av-g">G</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="transit transit-ok">✅ 80 min · ~8 min a pie a Moscone South</div>
+
+      <div class="tl-item">
+        <div class="tl-left"><div class="tl-time">10:00</div></div>
+        <div class="tl-line"><div class="tl-dot dot-a" style="background:#7c3aed;"></div></div>
+        <div class="tl-content">
+          <div class="tl-card card-a">
+            <div class="session">The AI Mindset Shift (Á)</div>
+            <div class="venue-tag">Por confirmar</div>
+            <div class="people"><span class="av av-a">Á</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="transit transit-warn">⚠️ 20 min para llegar al Exec. Meeting Suite · confirmar venue de AI Mindset Shift</div>
+
+      <div class="tl-item">
+        <div class="tl-left"><div class="tl-time">11:00</div></div>
+        <div class="tl-line"><div class="tl-dot dot-ga" style="background:#0ea5e9;"></div></div>
+        <div class="tl-content">
+          <div class="tl-card card-ga">
+            <div class="session">🤝 BradesCard Meeting</div>
+            <div class="venue-tag">Moscone South, MZ, Exec. Meeting Suite 100 ⑦</div>
+            <div class="people"><span class="av av-g">G</span><span class="av av-a">Á</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="transit transit-ok">✅ 35 min · ~10 min a pie a Moscone West</div>
+
+      <div class="tl-item">
+        <div class="tl-left"><div class="tl-time">12:00</div></div>
+        <div class="tl-line"><div class="tl-dot dot-g" style="background:#16a34a;"></div></div>
+        <div class="tl-content">
+          <div class="tl-card card-g">
+            <div class="session">How Agentic AI Delivers ROI in Regulated Finance</div>
+            <div class="venue-tag">Por confirmar</div>
+            <div class="people"><span class="av av-g">G</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="transit transit-ok">✅ 90 min · ~10 min a pie a Moscone West</div>
+
+      <div class="tl-item">
+        <div class="tl-left"><div class="tl-time">13:30</div></div>
+        <div class="tl-line"><div class="tl-dot dot-g" style="background:#16a34a;"></div></div>
+        <div class="tl-content">
+          <div class="tl-card card-g">
+            <div class="session">Banking on AI: Reinventing Sales &amp; Service with Agentforce</div>
+            <div class="venue-tag">Moscone West, L3, Room 3018 ⑧</div>
+            <div class="people"><span class="av av-g">G</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="transit transit-ok">✅ 20 min · mismo edificio Moscone West</div>
+
+      <div class="tl-item">
+        <div class="tl-left"><div class="tl-time">14:30</div></div>
+        <div class="tl-line"><div class="tl-dot dot-g" style="background:#16a34a;"></div></div>
+        <div class="tl-content">
+          <div class="tl-card card-g">
+            <div class="session">Money Talks: Agentic Analytics for Financial Services</div>
+            <div class="venue-tag">Por confirmar</div>
+            <div class="people"><span class="av av-g">G</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="transit transit-ok">✅ 30 min</div>
+
+      <div class="tl-item">
+        <div class="tl-left"><div class="tl-time">15:00</div></div>
+        <div class="tl-line"><div class="tl-dot dot-g" style="background:#16a34a;"></div></div>
+        <div class="tl-content">
+          <div class="tl-card card-g">
+            <div class="session">Roadmap: Agentforce Innovations for Banking &amp; Wealth</div>
+            <div class="venue-tag">Metreon AMC, L3, Theatre 10 ①</div>
+            <div class="people"><span class="av av-g">G</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="transit transit-warn">⚠️ 20 min · de Moscone West al AMC ~10 min a pie</div>
+
+      <div class="tl-item">
+        <div class="tl-left"><div class="tl-time">16:00</div></div>
+        <div class="tl-line"><div class="tl-dot dot-g" style="background:#16a34a;"></div></div>
+        <div class="tl-content">
+          <div class="tl-card card-g">
+            <div class="session">Banca Mifel</div>
+            <div class="venue-tag">City View, LATAM Lounge 2 ②</div>
+            <div class="people"><span class="av av-g">G</span></div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- end tl-jue -->
+
+  </div><!-- end timeline -->
+</div>
+
+<p style="text-align:center;font-size:0.7rem;color:#aaa;margin-top:12px;">Tiempos de traslado estimados a pie · Se actualizarán al confirmar venues faltantes · Dreamforce 2026 · SF</p>
+
+<script>
+function switchDay(day) {
+  // Tabs
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  event.target.classList.add('active');
+
+  // Timeline panels
+  document.querySelectorAll('.day-panel').forEach(p => p.style.display = 'none');
+  document.getElementById('tl-' + day).style.display = 'block';
+
+  // Map routes
+  document.getElementById('routes-mar').style.display = 'none';
+  document.getElementById('routes-mie').style.display = 'none';
+  document.getElementById('routes-jue').style.display = 'none';
+  document.getElementById('routes-' + day).style.display = 'block';
+
+  // Title
+  const titles = { mar: '📋 Agenda — Martes 15', mie: '📋 Agenda — Miércoles 16', jue: '📋 Agenda — Jueves 17' };
+  document.getElementById('tl-title').textContent = titles[day];
+}
+</script>
+</body>
+</html>
